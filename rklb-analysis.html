@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RKLB Technical Analysis — April 15, 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0e11;
+    --surface: #141820;
+    --surface2: #1a1f2e;
+    --border: #252a3a;
+    --text: #e1e4ea;
+    --text-dim: #8a8f9e;
+    --green: #22c55e;
+    --green-dim: rgba(34,197,94,0.12);
+    --red: #ef4444;
+    --red-dim: rgba(239,68,68,0.12);
+    --blue: #3b82f6;
+    --blue-dim: rgba(59,130,246,0.12);
+    --amber: #f59e0b;
+    --amber-dim: rgba(245,158,11,0.12);
+    --purple: #a78bfa;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  .container { max-width: 1280px; margin: 0 auto; padding: 24px 20px; }
+
+  /* Header */
+  .header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    padding-bottom: 20px; border-bottom: 1px solid var(--border);
+    flex-wrap: wrap; gap: 16px;
+  }
+  .ticker-group { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  .ticker { font-size: 36px; font-weight: 800; letter-spacing: -1px; color: #fff; }
+  .price { font-size: 36px; font-weight: 700; color: #fff; }
+  .change { font-size: 18px; font-weight: 600; padding: 4px 10px; border-radius: 4px; }
+  .change.up { background: var(--green-dim); color: var(--green); }
+  .change.down { background: var(--red-dim); color: var(--red); }
+  .meta-row { display: flex; gap: 24px; margin-top: 8px; color: var(--text-dim); font-size: 12px; flex-wrap: wrap; }
+  .meta-row span { display:flex; align-items:center; gap:4px; }
+  .pulse { width:8px; height:8px; border-radius:50%; background:var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .timestamp { color: var(--text-dim); font-size: 13px; text-align: right; }
+
+  /* Nav tabs */
+  .nav { display: flex; gap: 0; margin: 24px 0 20px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+  .nav button {
+    background: none; border: none; color: var(--text-dim); font-family: inherit;
+    font-size: 13px; font-weight: 600; padding: 10px 20px; cursor: pointer;
+    border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap;
+  }
+  .nav button:hover { color: var(--text); }
+  .nav button.active { color: #fff; border-bottom-color: var(--blue); }
+
+  /* Panels */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Cards */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 20px;
+  }
+  .card-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--text-dim); margin-bottom: 16px;
+  }
+
+  /* Levels table */
+  .levels-table { width: 100%; border-collapse: collapse; }
+  .levels-table th {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-dim); text-align: left; padding: 8px 12px;
+    border-bottom: 1px solid var(--border); font-weight: 600;
+  }
+  .levels-table td {
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .levels-table tr:last-child td { border-bottom: none; }
+  .levels-table tr { cursor: pointer; transition: background 0.15s; }
+  .levels-table tr:hover { background: var(--surface2); }
+  .level-price { font-weight: 700; font-size: 15px; }
+  .level-price.res { color: var(--red); }
+  .level-price.sup { color: var(--green); }
+  .level-tag {
+    display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px;
+    border-radius: 3px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .tag-critical { background: var(--red-dim); color: var(--red); }
+  .tag-major { background: var(--amber-dim); color: var(--amber); }
+  .tag-minor { background: var(--blue-dim); color: var(--blue); }
+  .level-note { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
+
+  /* Trend badges */
+  .trend-row { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .trend-row:last-child { border-bottom: none; }
+  .tf-label { font-weight: 700; font-size: 14px; min-width: 60px; }
+  .trend-badge {
+    font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .badge-bullish { background: var(--green-dim); color: var(--green); }
+  .badge-bearish { background: var(--red-dim); color: var(--red); }
+  .badge-caution { background: var(--amber-dim); color: var(--amber); }
+  .trend-desc { color: var(--text-dim); font-size: 12px; flex: 1; }
+
+  /* Cloud status */
+  .cloud-row { display: flex; align-items: center; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .cloud-row:last-child { border-bottom: none; }
+  .cloud-icon { width: 40px; height: 40px; border-radius: 6px; display:flex; align-items:center; justify-content:center; font-size: 18px; }
+  .cloud-green { background: var(--green-dim); }
+  .cloud-amber { background: var(--amber-dim); }
+  .cloud-info { flex: 1; }
+  .cloud-label { font-weight: 700; font-size: 14px; }
+  .cloud-desc { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
+  .cloud-status { font-weight: 700; font-size: 13px; }
+
+  /* Stat boxes */
+  .stat-box { text-align: center; padding: 16px; }
+  .stat-value { font-size: 28px; font-weight: 800; color: #fff; }
+  .stat-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+  /* Scenario bars */
+  .scenario { padding: 20px; border-radius: 8px; margin-bottom: 12px; }
+  .scenario-bull { background: linear-gradient(135deg, rgba(34,197,94,0.08), rgba(34,197,94,0.02)); border: 1px solid rgba(34,197,94,0.2); }
+  .scenario-bear { background: linear-gradient(135deg, rgba(239,68,68,0.08), rgba(239,68,68,0.02)); border: 1px solid rgba(239,68,68,0.2); }
+  .scenario-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .scenario-title { font-weight: 700; font-size: 16px; }
+  .scenario-prob { font-size: 24px; font-weight: 800; }
+  .scenario-bull .scenario-prob { color: var(--green); }
+  .scenario-bear .scenario-prob { color: var(--red); }
+  .scenario-body { color: var(--text-dim); font-size: 13px; line-height: 1.7; }
+  .scenario-body strong { color: var(--text); }
+
+  /* Market context */
+  .market-card {
+    display: flex; align-items: center; gap: 16px; padding: 16px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  }
+  .market-ticker { font-weight: 800; font-size: 18px; min-width: 50px; }
+  .market-price { font-weight: 700; font-size: 16px; }
+  .market-change { font-weight: 600; font-size: 14px; }
+
+  /* Chart container */
+  .chart-wrap { position: relative; height: 320px; margin-top: 12px; }
+  .chart-wrap canvas { border-radius: 6px; }
+
+  /* Prob bar */
+  .prob-bar-container { margin: 20px 0; }
+  .prob-bar { display:flex; height: 32px; border-radius: 6px; overflow:hidden; }
+  .prob-bull { background: var(--green); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; color:#000; }
+  .prob-bear { background: var(--red); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; color:#fff; }
+  .prob-labels { display:flex; justify-content:space-between; margin-top:6px; font-size:11px; color:var(--text-dim); }
+
+  /* Catalyst pills */
+  .catalyst { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; margin: 4px; border-radius:6px; font-size:12px; font-weight:600; }
+  .catalyst-pos { background:var(--green-dim); color:var(--green); border:1px solid rgba(34,197,94,0.2); }
+  .catalyst-neg { background:var(--red-dim); color:var(--red); border:1px solid rgba(239,68,68,0.2); }
+  .catalyst-neutral { background:var(--blue-dim); color:var(--blue); border:1px solid rgba(59,130,246,0.2); }
+
+  /* Disclaimer */
+  .disclaimer {
+    margin-top: 32px; padding: 16px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 6px;
+    font-size: 11px; color: var(--text-dim); line-height: 1.6;
+  }
+
+  /* Tooltip */
+  .tooltip-trigger { border-bottom: 1px dashed var(--text-dim); cursor: help; }
+
+  /* Gauge */
+  .gauge-container { display:flex; flex-direction:column; align-items:center; padding:20px 0; }
+  .gauge-label { font-size:12px; color:var(--text-dim); margin-bottom:8px; text-transform:uppercase; letter-spacing:1px; font-weight:600; }
+  .gauge-value { font-size:42px; font-weight:800; margin-top:8px; }
+  .gauge-sub { font-size:12px; color:var(--text-dim); margin-top:4px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- HEADER -->
+  <div class="header">
+    <div>
+      <div class="ticker-group">
+        <span class="ticker">RKLB</span>
+        <span class="price">$72.22</span>
+        <span class="change up">+$1.60 (+2.27%)</span>
+      </div>
+      <div class="meta-row">
+        <span><span class="pulse"></span> Pre-market: $73.18 (+1.33%)</span>
+        <span>Vol: 22.05M</span>
+        <span>52W: $18.21 — $99.58</span>
+        <span>Beta: 2.21</span>
+        <span>Mkt Cap: $41.58B</span>
+      </div>
+    </div>
+    <div class="timestamp">
+      Analysis Date<br>
+      <strong style="color:#fff; font-size:16px;">April 15, 2026</strong><br>
+      Pre-market 8:44 AM EDT
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <div class="nav" id="nav">
+    <button class="active" data-tab="outlook">Opening Outlook</button>
+    <button data-tab="levels">Support & Resistance</button>
+    <button data-tab="trends">Multi-Timeframe</button>
+    <button data-tab="clouds">EMA Clouds</button>
+    <button data-tab="market">Market Context</button>
+    <button data-tab="catalysts">Catalysts & Data</button>
+  </div>
+
+  <!-- =============== PANEL: LEVELS =============== -->
+  <div class="panel" id="panel-levels">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title" style="color:var(--red);">Resistance Levels</div>
+        <table class="levels-table">
+          <thead><tr><th>Price</th><th>Significance</th><th>Context</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="level-price res">$99.58</span></td>
+              <td><span class="level-tag tag-major">Major</span></td>
+              <td>52-week / all-time high<div class="level-note">Psychological ceiling</div></td>
+            </tr>
+            <tr>
+              <td><span class="level-price res">$85.00</span></td>
+              <td><span class="level-tag tag-major">Major</span></td>
+              <td>Median analyst target<div class="level-note">Structural resistance from prior highs</div></td>
+            </tr>
+            <tr>
+              <td><span class="level-price res">$78.50 — $79.00</span></td>
+              <td><span class="level-tag tag-major">Major</span></td>
+              <td>Mar 17 swing high ($78.59 close)<div class="level-note">Last high before the selloff</div></td>
+            </tr>
+            <tr>
+              <td><span class="level-price res">$74.75</span></td>
+              <td><span class="level-tag tag-critical">Critical</span></td>
+              <td>Apr 14 intraday high &mdash; rejected<div class="level-note">Immediate barrier. Break = continuation</div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--green);">Support Levels</div>
+        <table class="levels-table">
+          <thead><tr><th>Price</th><th>Significance</th><th>Context</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="level-price sup">$70.48 — $70.62</span></td>
+              <td><span class="level-tag tag-critical">Critical</span></td>
+              <td>Yesterday's low / prior close<div class="level-note">First line of defense</div></td>
+            </tr>
+            <tr>
+              <td><span class="level-price sup">$69.84</span></td>
+              <td><span class="level-tag tag-critical">Critical</span></td>
+              <td>50-Day Moving Average<div class="level-note">Just reclaimed. Losing it = red flag</div></td>
+            </tr>
+            <tr>
+              <td><span class="level-price sup">$66.00 — $67.70</span></td>
+              <td><span class="level-tag tag-major">Major</span></td>
+              <td>Consolidation cluster (Apr 6-10)<div class="level-note">Heavy traffic zone, should flip to support</div></td>
+            </tr>
+            <tr>
+              <td><span class="level-price sup">$64.22</span></td>
+              <td><span class="level-tag tag-major">Major</span></td>
+              <td>Mar 31 swing low close<div class="level-note">Losing this = bounce has failed</div></td>
+            </tr>
+            <tr>
+              <td><span class="level-price sup">$59.28</span></td>
+              <td><span class="level-tag tag-major">Major</span></td>
+              <td>200-Day Moving Average<div class="level-note">Line in the sand for the bigger trend</div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Price chart with levels -->
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title">Recent Price Action with Key Levels</div>
+      <div class="chart-wrap">
+        <canvas id="priceChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- =============== PANEL: TRENDS =============== -->
+  <div class="panel" id="panel-trends">
+    <div class="card">
+      <div class="card-title">Multi-Timeframe Trend Alignment</div>
+      <div class="trend-row">
+        <span class="tf-label">Daily</span>
+        <span class="trend-badge badge-bullish">Bullish</span>
+        <span class="trend-desc">
+          Recovery rally from $57.38 low to $72.22 (+26%). 7 of last 9 sessions green. Price above 50-DMA ($69.84) and 200-DMA ($59.28). RSI at 54.76 &mdash; mid-range with room to run. Approaching first real supply at $74-75.
+        </span>
+      </div>
+      <div class="trend-row">
+        <span class="tf-label">4-Hour</span>
+        <span class="trend-badge badge-bullish">Bullish</span>
+        <span class="trend-desc">
+          Impulsive uptrend since Mar 30 bottom. Consecutive higher lows: $57.38 &rarr; $59.03 &rarr; $61.86 &rarr; $65.30 &rarr; $66.34 &rarr; $66.59 &rarr; $70.48. However, Apr 14 candle shows bearish wick rejection above $73-74.
+        </span>
+      </div>
+      <div class="trend-row">
+        <span class="tf-label">1-Hour</span>
+        <span class="trend-badge badge-caution">Caution</span>
+        <span class="trend-desc">
+          Yesterday: gap up to $73.56, push to $74.75, hard selloff to $70.48, recovered to $72.22. Wide-range candle with seller rejection above $74. Pre-market at $73.18 sets up re-test of that resistance zone right at open.
+        </span>
+      </div>
+    </div>
+
+    <div class="grid-3" style="margin-top:16px;">
+      <div class="card stat-box">
+        <div class="stat-value" style="color:var(--green);">+26%</div>
+        <div class="stat-label">Bounce from Low</div>
+        <div style="color:var(--text-dim);font-size:11px;margin-top:4px;">$57.38 &rarr; $72.22</div>
+      </div>
+      <div class="card stat-box">
+        <div class="stat-value">54.76</div>
+        <div class="stat-label">RSI (14)</div>
+        <div style="color:var(--text-dim);font-size:11px;margin-top:4px;">Mid-range, not overbought</div>
+      </div>
+      <div class="card stat-box">
+        <div class="stat-value">7 / 9</div>
+        <div class="stat-label">Green Sessions</div>
+        <div style="color:var(--text-dim);font-size:11px;margin-top:4px;">Strong momentum streak</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title">Daily OHLC &mdash; Last 10 Sessions</div>
+      <div class="chart-wrap">
+        <canvas id="ohlcChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- =============== PANEL: CLOUDS =============== -->
+  <div class="panel" id="panel-clouds">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Ripster EMA Cloud Status (Inferred)</div>
+        <div class="cloud-row">
+          <div class="cloud-icon cloud-green">D</div>
+          <div class="cloud-info">
+            <div class="cloud-label">Daily</div>
+            <div class="cloud-desc">5/12 EMA crossed above 34/50 EMA in last 2-3 sessions. Cloud flipped green but is thin and compressed &mdash; trend reversal is young.</div>
+          </div>
+          <div class="cloud-status" style="color:var(--amber);">FRESH FLIP</div>
+        </div>
+        <div class="cloud-row">
+          <div class="cloud-icon cloud-green">4H</div>
+          <div class="cloud-info">
+            <div class="cloud-label">4-Hour</div>
+            <div class="cloud-desc">Firmly green/bullish given 9+ consecutive sessions of uptrend. Cloud is thickening.</div>
+          </div>
+          <div class="cloud-status" style="color:var(--green);">BULLISH</div>
+        </div>
+        <div class="cloud-row">
+          <div class="cloud-icon cloud-amber">1H</div>
+          <div class="cloud-info">
+            <div class="cloud-label">1-Hour</div>
+            <div class="cloud-desc">Bullish but showed compression during yesterday's $74.75 &rarr; $70.48 selloff. May have briefly flipped before recovering.</div>
+          </div>
+          <div class="cloud-status" style="color:var(--amber);">UNSTABLE</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">MTF Cloud Confluence</div>
+        <div class="gauge-container">
+          <div class="gauge-label">Multi-Timeframe Alignment</div>
+          <canvas id="gaugeChart" width="220" height="130"></canvas>
+          <div class="gauge-value" style="color:var(--amber);">CAUTIOUS</div>
+          <div class="gauge-sub">Bullish alignment forming but not confirmed</div>
+        </div>
+        <div style="padding:0 8px;">
+          <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border);font-size:13px;">
+            <span style="color:var(--text-dim);">Daily Cloud</span>
+            <span style="color:var(--amber);font-weight:700;">Thin Green (Fresh)</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border);font-size:13px;">
+            <span style="color:var(--text-dim);">4H Cloud</span>
+            <span style="color:var(--green);font-weight:700;">Established Green</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border);font-size:13px;">
+            <span style="color:var(--text-dim);">1H Cloud</span>
+            <span style="color:var(--amber);font-weight:700;">Green but Compressed</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border);font-size:13px;">
+            <span style="color:var(--text-dim);">Verdict</span>
+            <span style="color:var(--text);font-weight:700;">Wait for daily cloud to thicken</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title">Moving Average Structure</div>
+      <div class="grid-3" style="gap:0;">
+        <div class="stat-box" style="border-right:1px solid var(--border);">
+          <div class="stat-value" style="color:var(--green);">$69.84</div>
+          <div class="stat-label">50-DMA</div>
+          <div style="color:var(--green);font-size:11px;margin-top:4px;">Price ABOVE (+3.4%)</div>
+        </div>
+        <div class="stat-box" style="border-right:1px solid var(--border);">
+          <div class="stat-value" style="color:var(--green);">$59.28</div>
+          <div class="stat-label">200-DMA</div>
+          <div style="color:var(--green);font-size:11px;margin-top:4px;">Price ABOVE (+21.8%)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" style="color:var(--green);">Golden</div>
+          <div class="stat-label">50/200 Cross</div>
+          <div style="color:var(--green);font-size:11px;margin-top:4px;">50-DMA > 200-DMA</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =============== PANEL: OUTLOOK =============== -->
+  <div class="panel active" id="panel-outlook">
+    <div class="prob-bar-container">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:8px;font-weight:600;">Probability Assessment</div>
+      <div class="prob-bar">
+        <div class="prob-bull" style="width:60%;">60%</div>
+        <div class="prob-bear" style="width:40%;">40%</div>
+      </div>
+      <div class="prob-labels">
+        <span>Bullish continuation</span>
+        <span>Fade / rejection</span>
+      </div>
+    </div>
+
+    <div class="scenario scenario-bull">
+      <div class="scenario-header">
+        <span class="scenario-title" style="color:var(--green);">Bull Case</span>
+        <span class="scenario-prob">60%</span>
+      </div>
+      <div class="scenario-body">
+        Market calm and supportive. RKLB opens ~<strong>$73.20</strong>, holds above <strong>$72.00</strong> in the first 15 minutes, and pushes through <strong>$74.75</strong> on volume. If it clears $74.75, next target is <strong>$78&ndash;$79</strong> relatively quickly. Daily RSI has room, bounce trend intact, and the Mynaric acquisition news provides a fundamental catalyst.
+      </div>
+    </div>
+
+    <div class="scenario scenario-bear">
+      <div class="scenario-header">
+        <span class="scenario-title" style="color:var(--red);">Bear / Fade Case</span>
+        <span class="scenario-prob">40%</span>
+      </div>
+      <div class="scenario-body">
+        Opens at <strong>$73.20</strong> into resistance, can't break <strong>$74.75</strong> again, and fades. If it loses <strong>$72.22</strong> (yesterday's close), watch <strong>$70.48</strong> (yesterday's low). A break below $70.48 puts the <strong>50-DMA ($69.84)</strong> in play &mdash; losing that is the first real warning sign the bounce is running out of steam.
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title">Key Levels to Watch at Open</div>
+      <table class="levels-table">
+        <thead><tr><th>Level</th><th>Price</th><th>Action Trigger</th></tr></thead>
+        <tbody>
+          <tr>
+            <td style="color:var(--green);font-weight:700;">Breakout Confirmation</td>
+            <td><span class="level-price" style="color:var(--green);">Above $74.75</span></td>
+            <td>Green light to stay fully positioned. Target $78&ndash;$79.</td>
+          </tr>
+          <tr>
+            <td style="color:var(--amber);font-weight:700;">Hold Zone</td>
+            <td><span class="level-price" style="color:var(--amber);">$72.00 &ndash; $74.75</span></td>
+            <td>Neutral. Consolidating. No action required.</td>
+          </tr>
+          <tr>
+            <td style="color:var(--red);font-weight:700;">Warning</td>
+            <td><span class="level-price" style="color:var(--red);">Below $70.48</span></td>
+            <td>Consider tightening stops. 50-DMA test incoming.</td>
+          </tr>
+          <tr>
+            <td style="color:var(--red);font-weight:700;">Danger</td>
+            <td><span class="level-price" style="color:var(--red);">Below $69.84</span></td>
+            <td>50-DMA lost. Bounce thesis in jeopardy. Risk management critical.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title">Position Management Note</div>
+      <div style="color:var(--text-dim);font-size:13px;line-height:1.8;">
+        With a <strong style="color:#fff;">beta of 2.21</strong>, RKLB amplifies any market move by roughly 2x. Yesterday's intraday range was <strong style="color:#fff;">$70.48 &ndash; $74.75</strong> (a 6% spread). For a large position, this volatility demands disciplined risk management. The $74.75 level is your decision point: a clean break above on volume is the green light to stay positioned; a second rejection there is the signal to tighten stops.
+      </div>
+    </div>
+  </div>
+
+  <!-- =============== PANEL: MARKET =============== -->
+  <div class="panel" id="panel-market">
+    <div class="grid-2" style="margin-bottom:16px;">
+      <div class="market-card">
+        <div class="market-ticker">SPY</div>
+        <div style="flex:1;">
+          <div class="market-price">$694.46</div>
+          <div style="font-size:11px;color:var(--text-dim);">S&P 500 ETF</div>
+        </div>
+        <div>
+          <div class="market-change" style="color:var(--green);">+$8.36 (+1.22%)</div>
+          <div style="font-size:11px;color:var(--text-dim);text-align:right;">PM: $694.85 (+0.06%)</div>
+        </div>
+      </div>
+      <div class="market-card">
+        <div class="market-ticker">QQQ</div>
+        <div style="flex:1;">
+          <div class="market-price">$628.60</div>
+          <div style="font-size:11px;color:var(--text-dim);">Nasdaq-100 ETF</div>
+        </div>
+        <div>
+          <div class="market-change" style="color:var(--green);">+$11.21 (+1.82%)</div>
+          <div style="font-size:11px;color:var(--text-dim);text-align:right;">PM: $628.65 (+0.01%)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Market Context Summary</div>
+      <div style="color:var(--text-dim);font-size:13px;line-height:1.8;">
+        Both major indices had strong sessions yesterday. <strong style="color:var(--green);">QQQ outperforming SPY</strong> (+1.82% vs +1.22%) is a positive signal for high-beta growth/tech names like RKLB. Pre-market is essentially flat for both, suggesting no macro shock overnight. The broader market is <strong style="color:#fff;">not providing a headwind</strong> this morning.
+      </div>
+      <div style="margin-top:16px;">
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border);font-size:13px;">
+          <span style="color:var(--text-dim);">SPY 52W Range</span>
+          <span>$508.46 &ndash; $697.84</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border);font-size:13px;">
+          <span style="color:var(--text-dim);">QQQ 52W Range</span>
+          <span>$427.93 &ndash; $637.01</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border);font-size:13px;">
+          <span style="color:var(--text-dim);">QQQ vs SPY Relative Strength</span>
+          <span style="color:var(--green);font-weight:700;">QQQ Leading (+0.60%)</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border);font-size:13px;">
+          <span style="color:var(--text-dim);">Market Bias</span>
+          <span style="color:var(--green);font-weight:700;">Risk-On</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =============== PANEL: CATALYSTS =============== -->
+  <div class="panel" id="panel-catalysts">
+    <div class="card">
+      <div class="card-title">Active Catalysts</div>
+      <div style="margin-bottom:16px;">
+        <div class="catalyst catalyst-pos">Mynaric Acquisition Completed</div>
+        <div class="catalyst catalyst-pos">New Electric Propulsion Thruster</div>
+        <div class="catalyst catalyst-pos">Analyst Consensus: Buy</div>
+        <div class="catalyst catalyst-pos">Median Target: $85 (+17.7%)</div>
+        <div class="catalyst catalyst-neutral">Earnings: May 7 (~3 weeks out)</div>
+        <div class="catalyst catalyst-neg">Avg Analyst Target $71 (below price)</div>
+        <div class="catalyst catalyst-neg">Beta 2.21 &mdash; high volatility</div>
+        <div class="catalyst catalyst-neg">Short Interest: 4.32%</div>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-top:16px;">
+      <div class="card">
+        <div class="card-title">Key Statistics</div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">
+          <span style="color:var(--text-dim);">Market Cap</span><span style="font-weight:700;">$41.58B</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">
+          <span style="color:var(--text-dim);">Enterprise Value</span><span style="font-weight:700;">$40.75B</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">
+          <span style="color:var(--text-dim);">Revenue (TTM)</span><span style="font-weight:700;">$601.80M</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">
+          <span style="color:var(--text-dim);">Net Income</span><span style="color:var(--red);font-weight:700;">-$198.21M</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">
+          <span style="color:var(--text-dim);">EPS</span><span style="color:var(--red);font-weight:700;">-$0.37</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">
+          <span style="color:var(--text-dim);">Shares Outstanding</span><span style="font-weight:700;">575.77M</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:13px;">
+          <span style="color:var(--text-dim);">52-Week Price Change</span><span style="color:var(--green);font-weight:700;">+267.91%</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Analyst Price Targets</div>
+        <div class="chart-wrap" style="height:240px;">
+          <canvas id="targetChart"></canvas>
+        </div>
+        <div style="text-align:center;margin-top:12px;">
+          <span style="font-size:12px;color:var(--text-dim);">14 analysts &bull; Consensus: </span>
+          <span style="color:var(--green);font-weight:700;font-size:14px;">Buy</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DISCLAIMER -->
+  <div class="disclaimer">
+    <strong>Disclaimer:</strong> This is technical analysis based on publicly available data as of April 15, 2026 pre-market. This is not financial advice. The Ripster EMA Cloud and MTF Cloud readings are inferred from price structure relative to moving averages and may not precisely match your charting platform's indicator values. Always confirm against your own charts and make decisions based on your own risk tolerance and investment objectives. Past performance does not guarantee future results.
+  </div>
+</div>
+
+<script>
+// Tab navigation
+document.querySelectorAll('.nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// Chart defaults
+Chart.defaults.color = '#8a8f9e';
+Chart.defaults.borderColor = '#252a3a';
+Chart.defaults.font.family = "'SF Mono','Fira Code',monospace";
+Chart.defaults.font.size = 11;
+
+// Price chart with support/resistance
+const priceData = [
+  {d:'Mar 26',c:65.94},{d:'Mar 27',c:60.93},{d:'Mar 30',c:57.38},{d:'Mar 31',c:64.22},
+  {d:'Apr 1',c:65.52},{d:'Apr 2',c:67.73},{d:'Apr 6',c:67.67},{d:'Apr 7',c:66.32},
+  {d:'Apr 8',c:69.08},{d:'Apr 9',c:66.74},{d:'Apr 10',c:68.05},{d:'Apr 13',c:70.62},{d:'Apr 14',c:72.22}
+];
+new Chart(document.getElementById('priceChart'), {
+  type: 'line',
+  data: {
+    labels: priceData.map(d=>d.d),
+    datasets: [
+      { label:'Close', data:priceData.map(d=>d.c), borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.08)', fill:true, tension:0.3, pointRadius:4, pointBackgroundColor:'#3b82f6', borderWidth:2 },
+      { label:'R1: $74.75', data:Array(priceData.length).fill(74.75), borderColor:'rgba(239,68,68,0.5)', borderDash:[6,4], borderWidth:1, pointRadius:0 },
+      { label:'50-DMA: $69.84', data:Array(priceData.length).fill(69.84), borderColor:'rgba(245,158,11,0.5)', borderDash:[6,4], borderWidth:1, pointRadius:0 },
+      { label:'S1: $66-67', data:Array(priceData.length).fill(66.5), borderColor:'rgba(34,197,94,0.4)', borderDash:[6,4], borderWidth:1, pointRadius:0 },
+      { label:'200-DMA: $59.28', data:Array(priceData.length).fill(59.28), borderColor:'rgba(168,85,247,0.4)', borderDash:[6,4], borderWidth:1, pointRadius:0 },
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ position:'bottom', labels:{ usePointStyle:true, padding:16, font:{size:10} } } },
+    scales:{ y:{ grid:{color:'#1a1f2e'} }, x:{ grid:{display:false} } }
+  }
+});
+
+// OHLC-style bar chart (close prices with color coding)
+const ohlcData = [
+  {d:'Apr 2',o:62.23,h:69.39,l:61.86,c:67.73},
+  {d:'Apr 6',o:67.73,h:70.32,l:66.60,c:67.67},
+  {d:'Apr 7',o:67.12,h:68.30,l:63.96,c:66.32},
+  {d:'Apr 8',o:72.00,h:73.67,l:67.81,c:69.08},
+  {d:'Apr 9',o:69.06,h:69.79,l:66.55,c:66.74},
+  {d:'Apr 10',o:67.70,h:70.06,l:66.34,c:68.05},
+  {d:'Apr 13',o:67.05,h:71.55,l:66.59,c:70.62},
+  {d:'Apr 14',o:73.56,h:74.75,l:70.48,c:72.22},
+];
+new Chart(document.getElementById('ohlcChart'), {
+  type: 'bar',
+  data: {
+    labels: ohlcData.map(d=>d.d),
+    datasets: [
+      {
+        label:'Range (Low to High)',
+        data: ohlcData.map(d => [d.l, d.h]),
+        backgroundColor: ohlcData.map(d => d.c >= d.o ? 'rgba(34,197,94,0.7)' : 'rgba(239,68,68,0.7)'),
+        borderColor: ohlcData.map(d => d.c >= d.o ? '#22c55e' : '#ef4444'),
+        borderWidth:1, barPercentage:0.5,
+      }
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    indexAxis:'x',
+    plugins:{ legend:{ display:false }, tooltip:{
+      callbacks:{
+        label: function(ctx) {
+          const d = ohlcData[ctx.dataIndex];
+          return [`O: $${d.o}  H: $${d.h}`, `L: $${d.l}  C: $${d.c}`];
+        }
+      }
+    }},
+    scales:{ y:{ grid:{color:'#1a1f2e'}, min:60, max:78 }, x:{ grid:{display:false} } }
+  }
+});
+
+// Analyst target chart
+new Chart(document.getElementById('targetChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Low','Average','Current','Median','High'],
+    datasets: [{
+      data: [16, 71, 72.22, 85, 120],
+      backgroundColor: ['#ef4444','#f59e0b','#3b82f6','#22c55e','#22c55e'],
+      borderRadius: 4, barPercentage: 0.6,
+    }]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false, indexAxis:'y',
+    plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>'$'+ctx.raw}} },
+    scales:{ x:{grid:{color:'#1a1f2e'},min:0,max:130}, y:{grid:{display:false}} }
+  }
+});
+
+// Gauge (semicircle)
+const gaugeCtx = document.getElementById('gaugeChart').getContext('2d');
+function drawGauge(value) {
+  const cx=110, cy=120, r=90;
+  // Background arc
+  gaugeCtx.beginPath();
+  gaugeCtx.arc(cx,cy,r,Math.PI,2*Math.PI);
+  gaugeCtx.strokeStyle='#252a3a'; gaugeCtx.lineWidth=18; gaugeCtx.lineCap='round';
+  gaugeCtx.stroke();
+  // Red section
+  gaugeCtx.beginPath();
+  gaugeCtx.arc(cx,cy,r,Math.PI,Math.PI+Math.PI*0.33);
+  gaugeCtx.strokeStyle='#ef4444'; gaugeCtx.lineWidth=18; gaugeCtx.lineCap='round';
+  gaugeCtx.stroke();
+  // Amber section
+  gaugeCtx.beginPath();
+  gaugeCtx.arc(cx,cy,r,Math.PI+Math.PI*0.33,Math.PI+Math.PI*0.66);
+  gaugeCtx.strokeStyle='#f59e0b'; gaugeCtx.lineWidth=18; gaugeCtx.lineCap='round';
+  gaugeCtx.stroke();
+  // Green section
+  gaugeCtx.beginPath();
+  gaugeCtx.arc(cx,cy,r,Math.PI+Math.PI*0.66,2*Math.PI);
+  gaugeCtx.strokeStyle='#22c55e'; gaugeCtx.lineWidth=18; gaugeCtx.lineCap='round';
+  gaugeCtx.stroke();
+  // Needle
+  const angle = Math.PI + (value/100)*Math.PI;
+  const nx = cx + (r-10)*Math.cos(angle);
+  const ny = cy + (r-10)*Math.sin(angle);
+  gaugeCtx.beginPath();
+  gaugeCtx.moveTo(cx,cy);
+  gaugeCtx.lineTo(nx,ny);
+  gaugeCtx.strokeStyle='#fff'; gaugeCtx.lineWidth=3; gaugeCtx.lineCap='round';
+  gaugeCtx.stroke();
+  gaugeCtx.beginPath();
+  gaugeCtx.arc(cx,cy,6,0,2*Math.PI);
+  gaugeCtx.fillStyle='#fff'; gaugeCtx.fill();
+}
+drawGauge(58); // 58% = cautiously bullish, in amber-to-green territory
+</script>
+</body>
+</html>
